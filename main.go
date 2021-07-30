@@ -47,14 +47,14 @@ func loadConfig(f string) u.Config {
 }
 
 func writeCacheAndMotd(config u.Config, quote q.Quote, quotes []q.Quote) {
-	if q.CheckMotd(config, true) {
+	if q.CheckStorage(config, true, "motd") {
 		u.Debug(config, "writing motd")
 		err := q.WriteMotd(config.MotdPath, quote)
 		if err != nil {
 			log.Printf("ERROR: %+v\n", err)
 		}
 	}
-	if q.CheckCache(config, true) {
+	if q.CheckStorage(config, true, "cache") {
 		u.Debug(config, "writing cache")
 		err := q.WriteCache(config.CachePath, quotes)
 		if err != nil {
@@ -124,9 +124,9 @@ func main() {
 	var method string
 
 	// Define what to do/where to get the data from
-	if q.CheckMotd(config, false) {
+	if q.CheckStorage(config, false, "motd") {
 		method = "motd"
-	} else if q.CheckCache(config, false) {
+	} else if q.CheckStorage(config, false, "cache") {
 		method = "cache"
 	} else {
 		method = "api"
