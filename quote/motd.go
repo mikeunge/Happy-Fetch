@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
-	"time"
 
 	u "github.com/mikeunge/Happy-Fetch/utils"
 )
@@ -39,24 +38,30 @@ func WriteMotd(filePath string, q Quote) error {
 }
 
 // CheckMotd :: make sure if motd is enabled and the file exists as well as there is text written in it
-func CheckMotd(isEnabled bool, filePath string) bool {
-	if !isEnabled {
+func CheckMotd(config u.Config, writeAfterCheck bool) bool {
+	var createMotd = false
+
+	if !config.Motd {
+		u.Debug(config, "MOTD is not enabled")
 		return false
 	}
-	if !u.FileExists(filePath) {
-		return false
-	}
-	// Check for errors and check the file size.
-	if fi, err := os.Stat(filePath); err != nil || fi.Size() <= 0 {
-		return false
-	} else {
-		// make sure the "ModTime" is not bigger then the refresh rate.
-		// if so, we will scrap the motd and pull the information new.
-		tNow := time.Now()
-		days := fi.ModTime().Sub(tNow).Hours() / 24
-		if int(days) > 1 {
+
+	if !u.FileExists(config.MotdPath) {
+		if !writeAfterCheck {
+			u.Info(config, "MOTD does not exist")
 			return false
 		}
+		createMotd = true
 	}
+
+	if !createMotd {
+		mTime := u.CheckModificationTime(config, "motd")
+		// Check if we want to write the file again or nah, if we are trying to write, flip the statement.
+		if writeAfterCheck {
+			return !mTime
+		}
+		return mTime
+	}
+
 	return true
 }

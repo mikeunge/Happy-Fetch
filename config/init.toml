@@ -1,6 +1,9 @@
 cache = true
 cache_refresh = 7
-cache_path = "~/.hpy"
+cache_path = "/tmp/cache.hpy"
 motd = true
+motd_path = "/tmp/motd.hpy"
 logging = true
+logging_path = "/var/log/hpy.log"
+ignore_logging_if_fail = true
 debug = true

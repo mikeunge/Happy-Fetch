@@ -11,15 +11,15 @@ import (
 
 const ApiEndpoint = "https://type.fit/api/quotes"
 const ConfigPath = "/.config/happy_fetch/init.toml"
-const MotdPath = "/tmp/hpy.json"
-const CachePath = "/tmp/.hpy"
+
+// const MotdPath = "/tmp/hpy.json"
+// const CachePath = "/tmp/.hpy"
 
 var config u.Config
 
 func getHome() string {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
-		u.Error(config, err)
 		fmt.Printf("ERROR: %+v\n", err)
 		os.Exit(1)
 	}
@@ -33,13 +33,12 @@ func loadConfig(f string) u.Config {
 	ok := u.FileExists(f)
 	if !ok {
 		// Get the default configuration.
-		u.Warn(config, "config file does not exist")
+		fmt.Printf("Config not found, using default config.")
 		config = u.ConfigDefault()
 	} else {
 		// Read the configfile.
 		config, err = u.ConfigReader(f)
 		if err != nil {
-			u.Error(config, err)
 			fmt.Printf("ERROR: %+v\n", err)
 			os.Exit(-1)
 		}
@@ -47,17 +46,17 @@ func loadConfig(f string) u.Config {
 	return config
 }
 
-func writeCacheAndMotd(c u.Config, quote q.Quote, quotes []q.Quote) {
-	if q.CheckMotd(c.Motd, MotdPath) {
+func writeCacheAndMotd(config u.Config, quote q.Quote, quotes []q.Quote) {
+	if q.CheckMotd(config, true) {
 		u.Debug(config, "writing motd")
-		err := q.WriteMotd(MotdPath, quote)
+		err := q.WriteMotd(config.MotdPath, quote)
 		if err != nil {
 			log.Printf("ERROR: %+v\n", err)
 		}
 	}
-	if q.CheckCache(c.Cache, c.CachePath, c.CacheRefresh) {
+	if q.CheckCache(config, true) {
 		u.Debug(config, "writing cache")
-		err := q.WriteCache(c.CachePath, quotes)
+		err := q.WriteCache(config.CachePath, quotes)
 		if err != nil {
 			u.Error(config, err)
 		}
@@ -72,14 +71,14 @@ func do(m string, c u.Config) q.Quote {
 	switch m {
 	case "motd":
 		// load motd
-		quote, err = q.GetMotd(MotdPath)
+		quote, err = q.GetMotd(config.MotdPath)
 		if err != nil {
 			u.Error(config, err)
 			fmt.Printf("ERROR: %+v\n", err)
 			os.Exit(1)
 		}
 	case "cache":
-		quotes, err := q.GetCache(CachePath)
+		quotes, err := q.GetCache(config.CachePath)
 		if err != nil {
 			u.Error(config, err)
 			fmt.Printf("ERROR: %+v", err)
@@ -105,8 +104,18 @@ func do(m string, c u.Config) q.Quote {
 }
 
 func init() {
+	// Get the users homedir and construct the fullConfigPath.
+	fullConfigPath := getHome()
+	config = loadConfig(fullConfigPath)
+
+	// check if we should start/create a logger object
 	if config.Logging {
-		u.StartLogger()
+		ok := u.StartLogger(config.LoggingPath)
+		// make sure the logger was created, if not, check if we should contiue or not
+		if !ok && !config.IgnoreLogging {
+			log.Fatalf("error opening file: %s", config.LoggingPath)
+			os.Exit(-1)
+		}
 	}
 }
 
@@ -114,18 +123,10 @@ func main() {
 	var quote q.Quote
 	var method string
 
-	// Get the users homedir and construct the fullConfigPath.
-	fullConfigPath := getHome()
-	config = loadConfig(fullConfigPath)
-
 	// Define what to do/where to get the data from
-	if q.CheckMotd(config.Motd, MotdPath) {
+	if q.CheckMotd(config, false) {
 		method = "motd"
-	} else if q.CheckCache(config.Cache, config.CachePath, config.CacheRefresh) {
-		method = "cache"
-	} else if q.CheckCache(config.Cache, CachePath, config.CacheRefresh) {
-		// check a different path, if works, set the config.CachePath
-		config.CachePath = CachePath
+	} else if q.CheckCache(config, false) {
 		method = "cache"
 	} else {
 		method = "api"
