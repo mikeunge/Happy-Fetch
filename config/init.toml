@@ -1,0 +1,6 @@
+cache = true
+cache_refresh = 7
+cache_path = "~/.hpy"
+motd = true
+logging = true
+debug = true
